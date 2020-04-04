@@ -546,6 +546,14 @@ defmodule ExW3 do
       )
     end
 
+    @spec filter_payload(atom(), binary(), map()) :: {:ok, map()}
+    def filter_payload(contract_name, event_name, event_data \\ %{}) do
+      GenServer.call(
+        ContractManager,
+        {:filter_payload, {contract_name, event_name, event_data}}
+      )
+    end
+
     @spec get_filter_changes(binary()) :: {:ok, list()}
     @doc "Using saved information related to the filter id, event logs are formatted properly"
     def get_filter_changes(filter_id) do
@@ -894,6 +902,24 @@ defmodule ExW3 do
            event_name: event_name
          })
        )}
+    end
+
+    def handle_call({:filter_payload, {contract_name, event_name, event_data}}, _from, state) do
+      contract_info = state[contract_name]
+
+      event_signature = contract_info[:event_names][event_name]
+      topic_types = contract_info[:events][event_signature][:topic_types]
+      topic_names = contract_info[:events][event_signature][:topic_names]
+
+      topics = filter_topics_helper(event_signature, event_data, topic_types, topic_names)
+
+      payload =
+        Map.merge(
+          %{address: contract_info[:address], topics: topics},
+          event_data_format_helper(event_data)
+        )
+
+      {:reply, {:ok, payload}, state}
     end
 
     def handle_call({:get_filter_changes, filter_id}, _from, state) do
