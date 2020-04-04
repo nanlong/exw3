@@ -332,7 +332,8 @@ defmodule ExW3 do
   @spec load_abi(binary()) :: list() | {:error, atom()}
   @doc "Loads the abi at the file path and reformats it to a map"
   def load_abi(file_path) do
-    file = File.read(Path.join(File.cwd(), file_path))
+    {:ok, path} = File.cwd()
+    file = File.read(Path.join(path, file_path))
 
     case file do
       {:ok, abi} -> reformat_abi(Poison.Parser.parse!(abi, %{}))
@@ -343,7 +344,8 @@ defmodule ExW3 do
   @spec load_bin(binary()) :: binary()
   @doc "Loads the bin ar the file path"
   def load_bin(file_path) do
-    file = File.read(Path.join(File.cwd(), file_path))
+    {:ok, path} = File.cwd()
+    file = File.read(Path.join(path, file_path))
 
     case file do
       {:ok, bin} -> bin
