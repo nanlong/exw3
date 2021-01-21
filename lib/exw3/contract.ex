@@ -337,7 +337,8 @@ defmodule ExW3.Contract do
         else
           "0x" <>
             (ExW3.Abi.encode_data("(uint256)", [event_data[key]])
-             |> Base.encode16(case: :lower))
+             |> Base.encode16(case: :lower)
+             |> String.replace_leading("0", ""))
         end
 
       Map.put(event_data, key, new_param)
