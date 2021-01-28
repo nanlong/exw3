@@ -64,6 +64,14 @@ defmodule ExW3.Contract do
     )
   end
 
+  @spec filter(atom(), binary(), binary()) :: {:ok, binary()}
+  def put_filter_id(contract_name, event_name, filter_id) do
+    GenServer.call(
+      ContractManager,
+      {:put_filter_id, {contract_name, event_name, filter_id}}
+    )
+  end
+
   @doc "Using saved information related to the filter id, event logs are formatted properly"
   @spec get_filter_changes(binary()) :: {:ok, list()}
   def get_filter_changes(filter_id) do
@@ -412,6 +420,18 @@ defmodule ExW3.Contract do
 
     filter_id = ExW3.Rpc.new_filter(payload)
 
+    {:reply, {:ok, filter_id},
+     Map.put(
+       state,
+       :filters,
+       Map.put(state[:filters], filter_id, %{
+         contract_name: contract_name,
+         event_name: event_name
+       })
+     )}
+  end
+
+  def handle_call({:put_filter_id, {contract_name, event_name, filter_id}}, _from, state) do
     {:reply, {:ok, filter_id},
      Map.put(
        state,
