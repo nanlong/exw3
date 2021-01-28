@@ -449,31 +449,35 @@ defmodule ExW3.Contract do
     event_attributes =
       get_event_attributes(state, filter_info[:contract_name], filter_info[:event_name])
 
-    logs = ExW3.Rpc.get_filter_changes(filter_id)
+    case ExW3.Rpc.get_filter_changes(filter_id) do
+      {:error, _} = error ->
+        {:reply, error, state}
 
-    formatted_logs =
-      if logs != [] do
-        Enum.map(logs, fn log ->
-          formatted_log =
-            Enum.reduce(
-              [
-                ExW3.Normalize.transform_to_integer(log, [
-                  "blockNumber",
-                  "logIndex",
-                  "transactionIndex"
-                ]),
-                format_log_data(log, event_attributes)
-              ],
-              &Map.merge/2
-            )
+      logs ->
+        formatted_logs =
+          if logs != [] do
+            Enum.map(logs, fn log ->
+              formatted_log =
+                Enum.reduce(
+                  [
+                    ExW3.Normalize.transform_to_integer(log, [
+                      "blockNumber",
+                      "logIndex",
+                      "transactionIndex"
+                    ]),
+                    format_log_data(log, event_attributes)
+                  ],
+                  &Map.merge/2
+                )
 
-          formatted_log
-        end)
-      else
-        logs
-      end
+              formatted_log
+            end)
+          else
+            logs
+          end
 
-    {:reply, {:ok, formatted_logs}, state}
+        {:reply, {:ok, formatted_logs}, state}
+    end
   end
 
   def handle_call({:deploy, {name, args}}, _from, state) do
