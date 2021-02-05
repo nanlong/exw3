@@ -81,6 +81,14 @@ defmodule ExW3.Contract do
     )
   end
 
+  @spec get_logs(atom(), binary(), map()) :: {:ok, binary()}
+  def get_logs(contract_name, event_name, event_data \\ %{}) do
+    GenServer.call(
+      ContractManager,
+      {:get_logs, {contract_name, event_name, event_data}}
+    )
+  end
+
   def init(state) do
     {:ok, state}
   end
@@ -441,6 +449,55 @@ defmodule ExW3.Contract do
          event_name: event_name
        })
      )}
+  end
+
+  def handle_call({:get_logs, {contract_name, event_name, event_data}}, _from, state) do
+    contract_info = state[contract_name]
+
+    event_signature = contract_info[:event_names][event_name]
+    topic_types = contract_info[:events][event_signature][:topic_types]
+    topic_names = contract_info[:events][event_signature][:topic_names]
+
+    topics = filter_topics_helper(event_signature, event_data, topic_types, topic_names)
+
+    payload =
+      Map.merge(
+        %{address: contract_info[:address], topics: topics},
+        event_data_format_helper(event_data)
+      )
+
+    event_attributes =
+      get_event_attributes(state, contract_name, event_name)
+
+    case ExW3.Rpc.get_logs(payload) do
+      {:error, _} = error ->
+        {:reply, error, state}
+
+      {:ok, logs} ->
+        formatted_logs =
+          if logs != [] do
+            Enum.map(logs, fn log ->
+              formatted_log =
+                Enum.reduce(
+                  [
+                    ExW3.Normalize.transform_to_integer(log, [
+                      "blockNumber",
+                      "logIndex",
+                      "transactionIndex"
+                    ]),
+                    format_log_data(log, event_attributes)
+                  ],
+                  &Map.merge/2
+                )
+
+              formatted_log
+            end)
+          else
+            logs
+          end
+
+        {:reply, {:ok, formatted_logs}, state}
+    end
   end
 
   def handle_call({:get_filter_changes, filter_id}, _from, state) do
